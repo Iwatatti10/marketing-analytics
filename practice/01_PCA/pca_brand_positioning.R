@@ -4,16 +4,16 @@
 # ==============================
 
 
-prst1 <- read.csv("https://goo.gl/z5P8ce")
-summary(prst1)
-str(prst1)
+prst1 <- read.csv("https://goo.gl/z5P8ce")　#データの読み込み
+summary(prst1)　#記述統計
+str(prst1)　#データの構造を確認
 
 sc <- prst1
-sc[, 1:9] <- data.frame(scale(prst1[, 1:9]))
+sc[, 1:9] <- data.frame(scale(prst1[, 1:9]))　#1~9列目を標準化
 summary(sc)
 
 library(corrplot)
-corrplot(cor(sc[, 1:9]), order = "hclust")
+corrplot(cor(sc[, 1:9]), order = "hclust")　#相関
 
 prst1.mean <- aggregate(. ~ Brand, data = sc, mean)
 prst1.mean
