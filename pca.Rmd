@@ -1,0 +1,122 @@
+---
+title: "pca_brand_positioning"
+output: html_document
+date: "2026-04-04"
+---
+
+# *1.データの読み込みおよび前処理*
+
+```{r}
+prst1 <- read.csv("https://goo.gl/z5P8ce")　#データの読み込み
+summary(prst1)　#記述統計
+str(prst1)　#データの構造を確認
+
+sc <- prst1
+sc[, 1:9] <- data.frame(scale(prst1[, 1:9]))　#1~9列目を標準化
+summary(sc)
+```
+
+# *2.相関行列を可視化*
+
+```{r}
+library(corrplot)
+corrplot(cor(sc[, 1:9]), 
+         order = "hclust")　#似た変数同士をまとめて表示
+```
+
+　9つの属性が3つのグループに分類される。以降、これらをそれぞれ感情系（Generous, Delightful, CuttingEdge, Exciting）、実用系（Adaptable, BestValue）、使いやすさ系（Helpful, Friendly, Intuitive）とする。
+
+# *3.ヒートマップ*
+
+```{r}
+library(gplots)
+library(RColorBrewer)
+
+prst1.mean <- aggregate(. ~ Brand, data = sc,
+                        mean)　#ブランドごとに平均を算出
+prst1.mean.matrix <- as.matrix(prst1.mean[, -1])　#1列目を除いて行列変換
+
+rownames(prst1.mean.matrix) <- prst1.mean[, 1]　#1列目のブランドを行名に
+heatmap.2(prst1.mean.matrix,　#ヒートマップは行列を受け取る
+          col=brewer.pal(9, "GnBu"),　#緑から青への9段階で表現
+          trace="none",　#トレースラインは非表示
+          key=TRUE,　#色と数値の対応を表示
+          dend="none",　#樹形図の非表示
+          main="\n\n\nBrand attributes") #/nは改行
+```
+
+　この図は属性スコアの平均をブランドごとに表示したものである。濃い青が高評価、薄い緑は低評価を意味し、9つのグラデーションを設けている。感情系（Generous, Delightful, CuttingEdge, Exciting）ではTango・Sierra、使いやすさ系（Helpful, Friendly, Intuitive）ではRomeo・Papaが高評価を得ているとが分かる。
+
+# *4.主成分分析*
+
+```{r}
+prst.pc <- prcomp(sc[, 1:9])　#1~9列目を指定して分析
+summary(prst.pc)
+plot(prst.pc, type="l")　#折れ線グラフで固有値をプロット
+```
+
+　主成分とは複数の変数をまとめた新しい指標を指す。主成分分析とは、説明変数を要約する手法で、情報量をできる限り減らさず、次元(変数の数)を減らすことが目的である。今回の場合だと、9つの属性を2次元に圧縮し、ブランドの立ち位置を可視化していく。固有値とは各主成分が持つばらつきの大きさを指し、主成分が持つ情報量の指標である。
+
+# *5.PC1 vs PC2のバイプロット*
+
+```{r}
+rownames(prst1.mean) <- prst1.mean[, 1]　#ブランド名を行名に
+prst.mu.pc <- prcomp(prst1.mean[, -1], scale = TRUE)　#１列除いて主成分分析
+biplot(prst.mu.pc,
+       main = "Brand positioning",　#タイトル
+       cex  = c(1.0, 0.7),　#文字の大きさ
+       col  = c("black", "blue"),　#色の指定
+       xlim = c(-0.8, 0.8),　#軸の調整
+       ylim = c(-0.8, 0.8)
+       )　#expandで矢印の長さを変えられる
+```
+
+　軸は2つの主成分、左下のメモリは主成分スコア、右上のメモリは主成分負荷量、青い矢印と文字は属性と対応する主成分負荷量を指す。主成分スコアとは属性評価を主成分負荷量で重みづけて合計したものである。PC1の軸から見ると、0.0を中心に右側の属性(主に感情系)と正の関係、左側の属性(使いやすさ系)とは負の関係であることを示す。
+
+　PC2の軸から見ると、どの属性も0.0付近に集中しており、負荷量の絶対値が低い。しかし、実用系（Adaptable, BestValue）の負荷量が高く、PC2にそれらの変数が強い影響を及ぼしていることが分かる。
+
+　各ブランドを主成分スコアで見ると、いずれも0.0付近に集中しており、ブランド間の差が微々たるものであると読み取れる。PC1を軸にしてSierraを見ると、属性評価を主成分負荷量で重みづけした合計は正の値を取った。つまり、負荷量の絶対値に大きな差が見られないため、属性評価で感情系の評価が使いやすさ系を上回っていたことが推論される。
+
+　ところが、負荷量の絶対値にばらつきがある場合、特定の属性が主成分スコアを支配する。よって、負荷量の絶対値が大きい属性を重点的に強化していけば、主成分スコアは大きく変わる。つまり、プロット上で大きく座標が変わり、空白領域への移動や他社ブランドと距離をとることで、差別化につながる。
+
+# *6.主成分負荷量の確認*
+
+```{r}
+prst.mu.pc$rotation[, 1:2]
+```
+
+　主成分負荷量は各変数が主成分にどれだけ影響を及ぼしているを示す。scale = TRUEは変数を標準化してからPCAを行う設定で、単位や分散の大きさが異なる変数を同じ基準で比較できる。このとき負荷量は相関係数と同じ感覚で読める。正の値が大きいほどその主成分と同じ方向、負の値が大きいほど逆方向の関係を示す。
+
+　マーケティングへの応用としては、主成分負荷量が正の値をとる属性を重点的にアピールし、負の値をとる属性は抑えることで、捉えた特徴を最大限活かすことができる。また、負の値をとる属性については、別ブランドで展開するという選択肢が考えられる。
+
+# *7.ブランド間の属性差を確認*
+
+```{r}
+prst1.mean["Papa", -1] - prst1.mean["Romeo", -1]
+colMeans(prst1.mean[c("Papa","Romeo"),-1]) - prst1.mean["Papa",-1]
+colMeans(prst1.mean[c("Papa","Sierra"),-1]) - prst1.mean["Papa",-1]
+```
+
+　1行目では、PapaとRomeoにおける平均属性評価の差を取っている。主に使いやすさ系（Helpful, Friendly, Intuitive）ではPapa、感情系（Generous, Delightful, CuttingEdge, Exciting）ではRomeoが相対的に高い評価を得ている。しかし、実用系は分かれており、AdaptableではPapa、BestValueではRomeoが高い評価を得ている。
+
+　2・3行目ではPapaと競合ブランドの中間点を算出している。これはバイプロット上の空白領域、つまり既存ブランドが占めていないポジションを狙う際に、どの属性をどれだけ強化・抑制すればいいかを定量的に把握するためのものである。正の値が大きい属性は、競合と比較したときのPapaの弱点であり、強化の余地があることを示す。 　
+
+# *8.PC2 vs PC3のバイプロット*
+
+```{r}
+biplot(prst.mu.pc,
+       choices = c(2,3),
+       main    = "Brand positioning PC2 vs PC3",
+       cex     = c(1,0.7),
+       xlim    = c(-0.9,0.9),
+       ylim    = c(-0.9,0.9))
+prst.mu.pc$rotation[,2:3]
+```
+
+　PC2を軸に主成分負荷量を見ていくと、実用系（Adaptable, BestValue）が高く、これはPapaやTangoにとってさらなる強みとして訴求できるチャンスである。Romeoは突出した評価がなく、印象を創れる可能性がある。Sierraは実用系との関連が低いと主成分スコアから推論され、Adaptable, BestValueで差別化しようとすると、商品と顧客の持つイメージとの乖離が懸念される。しかし、負の主成分負荷量は少ないため、負の方向での差別化は現状厳しいと言える。
+
+　PC3を軸に主成分負荷量を見ていくと、Delightfulが突出して高く、これはRomeoにとって強みとして訴求できるチャンスである。SierraとTangoは中立であり、Delightful方向への展開の余地がある。しかし、SierraはPC2を軸に見ると、明確なアピールポイントを持ちにくい状況のため、PC3におけるDelightful方向への展開が現実的な差別化の選択肢であると考えられる。
+
+# *9.まとめ*
+
+　本分析では、ブランドポジショニングを主成分分析とバイプロットを用いて可視化した。PC1では感情系（Generous, Delightful, CuttingEdge, Exciting）と使いやすさ系（Helpful, Friendly, Intuitive）の対立軸が確認され、PC2では実用系（Adaptable, BestValue）、PC3ではDelightfulが主要な差別化軸として示された。PapaやTangoは実用系での訴求余地、RomeoはDelightfulでの強化が現実的な選択肢として挙げられる。SierraはPC1・PC2において明確なポジションを築きにくいが、PC3ではDelightful方向へのシフトが現実的な差別化戦略であると考えられる。
