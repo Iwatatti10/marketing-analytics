@@ -12,3 +12,6 @@ Practice code and interpretations from "R for Marketing Research and Analytics" 
 "R for Marketing Research and Analytics" 2nd ed.
 by Chapman & Feit
 (Japanese translation published by Kyoritsu Shuppan)
+
+## Reports
+- RPubs: https://rpubs.com/mow_monkey
